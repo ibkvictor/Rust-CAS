@@ -1,0 +1,10 @@
+[package]
+name = "rust_solve"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+at = "0.2.0"
+ndarray = "0.17.2"
+num-notation = "=0.1.5"
+num-traits = "0.2.19"
