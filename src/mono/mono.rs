@@ -104,6 +104,130 @@ impl From<(Expr, Option<String>)> for Mono {
     }
 }
 
+impl <'a, 'b> Mul<&'b Mono> for &'a Mono {
+    type Output = Result<Mono, bool>;
+
+    fn mul(self, other: &'b Mono) -> Self::Output {
+        let (mutable_self, mutable_other) = self.configure(other);
+        let vec1: Array1<Number> = Array1::from(self.variables.values().cloned().collect::<Vec<_>>());
+        let vec2: Array1<Number> = Array1::from(other.variables.values().cloned().collect::<Vec<_>>());
+
+        let vec: Array1<Number> = vec1 + vec2;
+        let k: Vec<String>  = mutable_self.variables.keys().cloned().collect();
+        let (vals, _) = vec.into_raw_vec_and_offset();
+
+        let coeff = mutable_self.coefficient().clone() * mutable_other.coefficient().clone();
+        let tmp_bmap: BTreeMap<String, Number> = k.iter().zip(vals.iter()).map(|(key, val)| (key.clone(), val.clone())).collect();
+        
+        let e: Expr = Expr::from((coeff.clone(), k, vals));
+
+        return Ok(Mono {
+            coefficient: coeff,
+            variables: tmp_bmap,
+            ORDER: mutable_self.ORDER,
+            e: Some(e),
+        });
+    }
+}
+
+impl <'a, 'b> Div<&'b Mono> for &'a Mono {
+    type Output = Result<Mono, bool>;
+
+    fn div(self, other: &'b Mono) -> Self::Output {
+        let (mutable_self, mutable_other) = self.configure(other);
+        let vec1: Array1<Number> = Array1::from(self.variables.values().cloned().collect::<Vec<_>>());
+        let vec2: Array1<Number> = Array1::from(other.variables.values().cloned().collect::<Vec<_>>());
+
+        let vec: Array1<Number> = vec1 - vec2;
+        let k: Vec<String>  = mutable_self.variables.keys().cloned().collect();
+        let (vals, _) = vec.into_raw_vec_and_offset();
+
+        let coeff = mutable_self.coefficient().clone() / mutable_other.coefficient().clone();
+        let tmp_bmap: BTreeMap<String, Number> = k.iter().zip(vals.iter()).map(|(key, val)| (key.clone(), val.clone())).collect();
+
+        let e: Expr = Expr::from((coeff.clone(), Vec::from(k), vals));
+
+        return Ok(Mono {
+            coefficient: coeff,
+            variables: tmp_bmap,
+            ORDER: mutable_self.ORDER,
+            e: Some(e),
+        });
+    }
+}
+
+impl Div for Mono {
+    type Output = Result<Mono, bool>;
+
+    fn div(self, other: Mono) -> Self::Output {
+        let (mutable_self, mutable_other) = self.configure(&other);
+        let vec1: Array1<Number> = Array1::from(self.variables.values().cloned().collect::<Vec<_>>());
+        let vec2: Array1<Number> = Array1::from(other.variables.values().cloned().collect::<Vec<_>>());
+
+        let vec: Array1<Number> = vec1 - vec2;
+        let k: Vec<String>  = mutable_self.variables.keys().cloned().collect();
+        let (vals, _) = vec.into_raw_vec_and_offset();
+
+        let coeff = mutable_self.coefficient().clone() / mutable_other.coefficient().clone();
+        let tmp_bmap: BTreeMap<String, Number> = k.iter().zip(vals.iter()).map(|(key, val)| (key.clone(), val.clone())).collect();
+
+        let e: Expr = Expr::from((coeff.clone(), Vec::from(k), vals));
+
+        return Ok(Mono {
+            coefficient: coeff,
+            variables: tmp_bmap,
+            ORDER: mutable_self.ORDER,
+            e: Some(e),
+        });
+    }
+}
+
+impl <'a, 'b> Add<&'b Mono> for &'a Mono {
+    type Output = Result<Mono, bool>;
+
+    fn add(self, other: &'b Mono) -> Self::Output {
+        // common terms
+        let (new_self, new_other): (Mono, Mono) = self.configure(&other);
+
+        if new_self.common_term(&new_other) {
+            let c: Number = new_self.coefficient().clone() + new_other.coefficient().clone();
+            let e: Expr = Expr::from((c.clone(), new_self.variables.keys().cloned().collect::<Vec<_>>(), new_self.variables.values().cloned().collect::<Vec<_>>()));
+            return Ok(Mono {
+                coefficient: c,
+                variables: new_self.variables().clone(),
+                ORDER: new_self.ORDER,
+                e: Some(e)
+            });
+        }
+        else {
+            return Err(false);
+        }
+    }
+}
+
+impl <'a, 'b> Sub<&'b Mono> for &'a Mono {
+    type Output = Result<Mono, bool>;
+
+    fn sub(self, other: &'b Mono) -> Self::Output {
+        // common terms
+        let (new_self, new_other): (Mono, Mono) = self.configure(&other);
+
+        if new_self.common_term(&new_other) {
+            let c: Number = new_self.coefficient().clone() - new_other.coefficient().clone();
+            let e: Expr = Expr::from((c.clone(), new_self.variables.keys().cloned().collect::<Vec<_>>(), new_self.variables.values().cloned().collect::<Vec<_>>()));
+            return Ok(Mono {
+                coefficient: c,
+                variables: new_self.variables().clone(),
+                ORDER: new_self.ORDER,
+                e: Some(e)
+            });
+        }
+        else {
+            return Err(false);
+        }
+    }
+}
+
 impl Mono {
     pub fn e(&self) -> Expr {
         self.e.clone().unwrap()
@@ -255,102 +379,30 @@ impl Mono {
         }
         true
     }
-}
 
-impl <'a, 'b> Mul<&'b Mono> for &'a Mono {
-    type Output = Result<Mono, bool>;
-
-    fn mul(self, other: &'b Mono) -> Self::Output {
-        let (mutable_self, mutable_other) = self.configure(other);
-        let vec1: Array1<Number> = Array1::from(self.variables.values().cloned().collect::<Vec<_>>());
-        let vec2: Array1<Number> = Array1::from(other.variables.values().cloned().collect::<Vec<_>>());
-
-        let vec: Array1<Number> = vec1 + vec2;
-        let k: Vec<String>  = mutable_self.variables.keys().cloned().collect();
-        let (vals, _) = vec.into_raw_vec_and_offset();
-
-        let coeff = mutable_self.coefficient().clone() * mutable_other.coefficient().clone();
-        let tmp_bmap: BTreeMap<String, Number> = k.iter().zip(vals.iter()).map(|(key, val)| (key.clone(), val.clone())).collect();
-        
-        let e: Expr = Expr::from((coeff.clone(), k, vals));
-
-        return Ok(Mono {
-            coefficient: coeff,
-            variables: tmp_bmap,
-            ORDER: mutable_self.ORDER,
-            e: Some(e),
-        });
-    }
-}
-
-impl <'a, 'b> Div<&'b Mono> for &'a Mono {
-    type Output = Result<Mono, bool>;
-
-    fn div(self, other: &'b Mono) -> Self::Output {
-        let (mutable_self, mutable_other) = self.configure(other);
-        let vec1: Array1<Number> = Array1::from(self.variables.values().cloned().collect::<Vec<_>>());
-        let vec2: Array1<Number> = Array1::from(other.variables.values().cloned().collect::<Vec<_>>());
-
-        let vec: Array1<Number> = vec1 - vec2;
-        let k: Vec<String>  = mutable_self.variables.keys().cloned().collect();
-        let (vals, _) = vec.into_raw_vec_and_offset();
-
-        let coeff = mutable_self.coefficient().clone() / mutable_other.coefficient().clone();
-        let tmp_bmap: BTreeMap<String, Number> = k.iter().zip(vals.iter()).map(|(key, val)| (key.clone(), val.clone())).collect();
-
-        let e: Expr = Expr::from((coeff.clone(), Vec::from(k), vals));
-
-        return Ok(Mono {
-            coefficient: coeff,
-            variables: tmp_bmap,
-            ORDER: mutable_self.ORDER,
-            e: Some(e),
-        });
-    }
-}
-
-impl <'a, 'b> Add<&'b Mono> for &'a Mono {
-    type Output = Result<Mono, bool>;
-
-    fn add(self, other: &'b Mono) -> Self::Output {
-        // common terms
-        let (new_self, new_other): (Mono, Mono) = self.configure(&other);
-
-        if new_self.common_term(&new_other) {
-            let c: Number = new_self.coefficient().clone() + new_other.coefficient().clone();
-            let e: Expr = Expr::from((c.clone(), new_self.variables.keys().cloned().collect::<Vec<_>>(), new_self.variables.values().cloned().collect::<Vec<_>>()));
-            return Ok(Mono {
-                coefficient: c,
-                variables: new_self.variables().clone(),
-                ORDER: new_self.ORDER,
-                e: Some(e)
-            });
+    pub fn lcm(a: &Mono, b: &Mono) -> Mono {
+        let mut keys: BTreeSet<String> = BTreeSet::new();
+        let mut lcm_mono: Mono = Mono::default();
+        for self_ch in a.variables.keys() {
+            keys.insert(self_ch.clone());
         }
-        else {
-            return Err(false);
+        for other_ch in b.variables.keys() {
+            keys.insert(other_ch.clone());
         }
-    }
-}
-
-impl <'a, 'b> Sub<&'b Mono> for &'a Mono {
-    type Output = Result<Mono, bool>;
-
-    fn sub(self, other: &'b Mono) -> Self::Output {
-        // common terms
-        let (new_self, new_other): (Mono, Mono) = self.configure(&other);
-
-        if new_self.common_term(&new_other) {
-            let c: Number = new_self.coefficient().clone() - new_other.coefficient().clone();
-            let e: Expr = Expr::from((c.clone(), new_self.variables.keys().cloned().collect::<Vec<_>>(), new_self.variables.values().cloned().collect::<Vec<_>>()));
-            return Ok(Mono {
-                coefficient: c,
-                variables: new_self.variables().clone(),
-                ORDER: new_self.ORDER,
-                e: Some(e)
-            });
+        for k in keys.iter() {
+            let deg_a: Number = match a.variables.contains_key(k) {
+                true => a.variables[k].clone(),
+                false => Number::Decimal(0.0)
+            };
+            let deg_b: Number = match b.variables.contains_key(k) {
+                true => b.variables[k].clone(),
+                false => Number::Decimal(0.0)
+            };
+            lcm_mono.variables.insert(k.clone(), deg_a.max(deg_b));
         }
-        else {
-            return Err(false);
-        }
+        lcm_mono.coefficient = Number::Decimal(1.0);
+        lcm_mono.ORDER = a.ORDER.clone();
+        lcm_mono.update_expr();
+        lcm_mono
     }
 }

@@ -134,11 +134,15 @@ impl Poly {
         return ops[i].clone();
     }
 
+    pub fn monomials(&self) -> BTreeMap<String, Mono> {
+        return self.monomials.clone();
+    }
+
     pub fn monomial_gme(self) -> bool {
         return self.e.monomial_gme();
     }
 
-    fn leading_term(&mut self) -> &Mono { //only mut self because order method is used here
+    pub fn leading_term(&mut self) -> &Mono { //only mut self because order method is used here
         if self.ORDER.1 == false {
             return self.monomials.values().next().unwrap();
         }
@@ -281,6 +285,8 @@ impl PartialEq for Poly {
         return self.e == other.e;
     }
 }
+
+impl Eq for Poly {}
 
 impl Clone for Poly {
     fn clone(&self) -> Self {
@@ -431,7 +437,7 @@ impl Div for Poly {
             let test = g[i].leading_term().cofactor(p.leading_term()).clone();
             match test.clone() {
                 Ok(_value) => {
-                    let lt_mult: Mono = p.leading_term().clone().div(&(g[i].leading_term().clone())).unwrap();
+                    let lt_mult: Mono = p.leading_term().clone().div(g[i].leading_term().clone()).unwrap();
                     p = p - (g[i].clone() * Poly::from(lt_mult.clone()));
                     q = q + Poly::from(lt_mult.clone());
                 }
@@ -476,7 +482,7 @@ impl Div<Vec<Poly>> for Poly {
             let test = g[i].leading_term().cofactor(p.leading_term()).clone();
             match test.clone() {
                 Ok(_value) => {
-                    let lt_mult: Mono = p.leading_term().clone().div(&(g[i].leading_term().clone())).unwrap();
+                    let lt_mult: Mono = p.leading_term().clone().div(g[i].leading_term().clone()).unwrap();
                     p = p - (g[i].clone() * Poly::from(lt_mult.clone()));
                     q = q + Poly::from(lt_mult.clone());
                 }
@@ -511,7 +517,7 @@ impl Div<Mono> for Poly {
         let mut updated_monomials = BTreeMap::new();
         for (key, mono) in result_poly.monomials.iter() {
             let (new_mono, other_val) = mono.configure(&other);
-            let divided_mono = new_mono.div(&other_val).unwrap();
+            let divided_mono = new_mono.div(other_val).unwrap();
             updated_monomials.insert(key.clone(), divided_mono);
         }
         result_poly.monomials = updated_monomials;
